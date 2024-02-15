@@ -18,19 +18,19 @@ import importlib
 from datetime import datetime 
 
 
-class BBIM_reload(bpy.types.Operator):
-    bl_idname = "wm.bbim_reload"
-    bl_label = "Reload BBIM classes"
-    bl_description = "BlenderBIM reload "
-    bl_options = {'REGISTER'}
+class BBIM_reload():
 
-    bl_startdate = datetime.date
+    bl_startdate = datetime.now()
 
-    def execute(self, context):
+    def execute(self):
+        
+        
+        
         reregister_classes = {
             "blenderbim.bim.module.demo.ui": ("BIM_PT_demo", )
         }   
-        print("reloading bbim recent files")
+        print("reloading bbim recent files", self.bl_startdate)
+        
         for module_name, classes in reregister_classes.items():
             module = importlib.import_module(module_name)
             for class_name in classes:
@@ -50,21 +50,8 @@ def menu_draw(self, context):
     layout = self.layout
     layout.separator()
     layout.operator("wm.bbim_reload", text="Reload_bbim", icon='PLUGIN')
-    # layout.separator()
-    # prefs = bpy.context.preferences
-    # view = prefs.view
-    # layout.prop(view, "use_save_prompt")
-
-
-def register():
-    bpy.utils.register_class(BBIM_reload)
-    bpy.types.TOPBAR_MT_file.append(menu_draw)
-
-
-def unregister():
-    bpy.utils.unregister_class(BBIM_reload)
-    bpy.types.TOPBAR_MT_file.remove(menu_draw)
 
 
 if __name__ == "__main__":
-    register()
+    br = BBIM_reload()
+    br.execute()
