@@ -1,2 +1,5 @@
 # bbim-reload-addon
- A add on for Blender to fasten the reload BBIM 
+ A add-on to help reloading BlenderBIM modules while developping
+ Based on a snippet by Andrej730 
+
+ 
