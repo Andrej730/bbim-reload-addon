@@ -3,7 +3,7 @@ import importlib
 import inspect
 import pkgutil
 
-reregister_modules = ["blenderbim.bim.module"]
+reregister_modules = ["blenderbim.bim.module.demo"]
 
 def reregister_modules_recursive(module_name):
     print('Module ', module_name)
