@@ -30,7 +30,7 @@ class BBIM_reload(bpy.types.Operator):
     def execute(self, context):                             
         print('-'*60)
         print('Reregistering BBIM utility')
-        self.reregister_modules_recursive(self.MODULE)
+        self.reregister_modules_recursive(self.module)
         print('done')
         print('-'*60)
         return {'FINISHED'}
