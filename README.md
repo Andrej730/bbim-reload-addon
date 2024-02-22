@@ -9,11 +9,11 @@ replace ["blenderbim.bim.module.demo.ui"] by (a list) of module(s) you are worki
 replace ["blenderbim.bim.module.demo"] by the module you are working on and execute (this will reload all the classes in module and parse also submodules if there's any) 
 
 *bbim-reload-addon.py* is meant to work as the recursive one but you need to install it as an add-on in Blender.
-It provides a panel with a text input where you can secify a comma separated list of bbim module you want to reregister and you need to click on the button to actually do it. 
+It provides a panel with a text input where you can specify a comma separated list of bbim modules you want to reregister and you need to click on the button to actually do it. 
 
 ![image](https://github.com/bdamay/bbim-reload-addon/assets/16347726/fc9b8979-3d27-4449-8057-198522007ebb)
 
-Beware as each entry is a starting point for recursive reload. (i experienced strange errors and behavior with the root module package of bbim, you may hav a clue? ). 
+Beware as each entry is a starting point for recursive reload. (i experienced strange errors and behavior with the root module package of bbim, you may have a clue on a way it could be solved?). 
 
 
 
