@@ -43,21 +43,33 @@ class BBIM_OT_Reload(bpy.types.Operator):
         try:
             module = importlib.import_module(module_name)
             # retrieving registered classes with inspect
-            classes = [
-                c
-                for c, o in inspect.getmembers(module, inspect.isclass)
-                if hasattr(bpy.types, c)
-            ]
-            # reregistering classes
-            for class_name in classes:
-                class_obj = getattr(module, class_name)
-                bpy.utils.unregister_class(class_obj)
-            importlib.reload(module)
-            for class_name in classes:
-                print("Reregistering Class", class_name)
-                class_obj = getattr(module, class_name)
-                bpy.utils.register_class(class_obj)
+            # classes = [
+            #     o for c, o in inspect.getmembers(module, inspect.isclass)
+            #     if hasattr(bpy.types, c)
+            # ]
 
+            classes = []
+            for c, o in inspect.getmembers(module, inspect.isclass):
+                try:
+                    print(o, o.is_registered)
+                    classes.append(o)
+                except:
+                    pass #not registered
+
+            # reregistering classes
+            for class_obj in classes:
+                try: 
+                    # some classes fails unregistering with wrong bl_rna attributes 
+                    # either they are not registered and it's not detected on the previoous test 
+                    # we won't reregister them 
+                    bpy.utils.unregister_class(class_obj)
+                    importlib.reload(module)
+                    for class_obj in classes:
+                        print("Reregistering Class", class_obj)
+                        bpy.utils.register_class(class_obj)
+                except Exception as e:
+                    print(class_obj, e)
+                    
             # in case there are submodules reregister them
             # i use pkgutil cause for some reason inspect module brings also bpy as a sub module
             if "__path__" in dir(module):  # seems __path__ doesn't exist on last level
@@ -70,7 +82,8 @@ class BBIM_OT_Reload(bpy.types.Operator):
                     self.reregister_modules_recursive(module_name)
 
         except Exception as e:
-            print("*** Some errors have occurred in ", module_name, e)
+           raise
+           #print("*** Some errors have occurred in ", module_name, e)
 
     def execute(self, context):
         self.props = context.scene.BBIMReloadProperties            
