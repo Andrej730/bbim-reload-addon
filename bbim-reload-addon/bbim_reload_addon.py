@@ -82,8 +82,8 @@ class BBIM_OT_Reload(bpy.types.Operator):
                     self.reregister_modules_recursive(module_name)
 
         except Exception as e:
-           raise
-           #print("*** Some errors have occurred in ", module_name, e)
+            raise
+            # print("*** Some errors have occurred in ", module_name, e)
 
     def execute(self, context):
         self.props = context.scene.BBIMReloadProperties            
