@@ -34,66 +34,36 @@ class BBIM_OT_Reload(bpy.types.Operator):
     bl_label = "Reload Classes from modules"
     
     def reregister_modules_recursive(self, module_name):
-        """
-        This function parses module_name recursively
-        And reregister all registered classes that it can find
-        TODO some errors occurs (even in demo - actually print error and skip problems...)
-        """
-        print("Module ", module_name)
-        try:
-            module = importlib.import_module(module_name)
-            # retrieving registered classes with inspect
-            # classes = [
-            #     o for c, o in inspect.getmembers(module, inspect.isclass)
-            #     if hasattr(bpy.types, c)
-            # ]
 
-            classes = []
-            for c, o in inspect.getmembers(module, inspect.isclass):
-                try:
-                    print(o, o.is_registered)
-                    classes.append(o)
-                except:
-                    pass #not registered
-
-            # reregistering classes
-            for class_obj in classes:
-                try: 
-                    # some classes fails unregistering with wrong bl_rna attributes 
-                    # either they are not registered and it's not detected on the previoous test 
-                    # we won't reregister them 
-                    bpy.utils.unregister_class(class_obj)
+        print('Module', module_name)
+        module = importlib.import_module(module_name)
+        # retrieving registered classes with inspect
+        class_names = [n for n, c in inspect.getmembers(module, inspect.isclass)]
+        # reregistering classes
+        for cn in class_names:
+            cl = getattr(module, cn)
+            if hasattr(cl, 'is_registered'):
+                if cl.is_registered and module_name == cl.__module__:
+                    bpy.utils.unregister_class(cl)
                     importlib.reload(module)
-                    for class_obj in classes:
-                        print("Reregistering Class", class_obj)
-                        bpy.utils.register_class(class_obj)
-                except Exception as e:
-                    print(class_obj, e)
-                    
-            # in case there are submodules reregister them
-            # i use pkgutil cause for some reason inspect module brings also bpy as a sub module
-            if "__path__" in dir(module):  # seems __path__ doesn't exist on last level
-                modules = [
-                    module_name + "." + o.name
-                    for o in pkgutil.iter_modules(module.__path__)
-                ]
-                print("module has summodules:")
-                for module_name in modules:
-                    self.reregister_modules_recursive(module_name)
+                    cl = getattr(module, cn)
+                    bpy.utils.register_class(cl)
+                    print('- Registered Class', cn)
 
-        except Exception as e:
-            raise
-            # print("*** Some errors have occurred in ", module_name, e)
+        sub_modules=[]
+        for n, sm in inspect.getmembers(module, inspect.ismodule):
+            # We should avoid reparsing upper modules here. so check if sub module contains module name
+            if module_name in sm.__name__:
+                sub_modules.append(sm.__name__)
+
+        for sub_module_name in sub_modules:
+            self.reregister_modules_recursive(sub_module_name)
 
     def execute(self, context):
         self.props = context.scene.BBIMReloadProperties            
         print("-" * 60)# i'm printing but might be better to do logging.
         print("Reregistering BBIM utility")
-        _modules = self.props.module
-        print(_modules)
-        for _module in _modules.split(','):
-            _full_path = 'blenderbim.bim.module.' + _module
-            self.reregister_modules_recursive(_full_path)
+        self.reregister_modules_recursive(self.props.basename+'.'+self.props.module)
         print("done")
         print("-" * 60)
         return {"FINISHED"}
@@ -101,8 +71,9 @@ class BBIM_OT_Reload(bpy.types.Operator):
 
 class BBIMReloadProperties(PropertyGroup):
     # This property is a string, where we can list modules comma separated...
-    # Starting with bbim demo module 
-    module: StringProperty(name="Modules", default="demo")
+    # Starting with bbim  module
+    basename: StringProperty(name="Basename", default="blenderbim.bim.module")
+    module: StringProperty(name="Module", default="project.operator")
 
 
 class BBIM_PT_Reload(bpy.types.Panel):
@@ -120,6 +91,8 @@ class BBIM_PT_Reload(bpy.types.Panel):
         scene = context.scene
 
         # Create a simple row.
+        row = layout.row()
+        row.prop(self.props, 'basename')
         row = layout.row()
         row.prop(self.props, 'module')
         row = layout.row()
