@@ -14,10 +14,8 @@ def reregister_modules_recursive(module_name, level=0):
     for cn in class_names:          
         cl = getattr(module, cn) 
         if hasattr(cl, 'is_registered'):
-            if  cl.is_registered and module_name == cl.__module__: 
-#                print('unregistering Class', cn)
+            if  cl.is_registered and module_name == cl.__module__:
                 bpy.utils.unregister_class(cl)
-#                print('reloading ', module)
                 importlib.reload(module)
                 print('-' * level, 'Reregistering Class', cn)
                 cl = getattr(module, cn)
@@ -30,7 +28,7 @@ def reregister_modules_recursive(module_name, level=0):
             sub_modules.append(sm.__name__) 
             
     for module_name in sub_modules:          
-        self.reregister_modules_recursive(module_name)
+        reregister_modules_recursive(module_name)
             
 
 
