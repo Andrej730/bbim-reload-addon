@@ -13,6 +13,7 @@ bl_info = {
 
 import bpy
 import importlib
+import collections
 from datetime import datetime
 import inspect
 import pkgutil
@@ -41,19 +42,47 @@ class BBIM_OT_Reload(bpy.types.Operator):
         # retrieving registered classes with inspect
         class_names = [(n, c) for n, c in inspect.getmembers(module, inspect.isclass)]
         # reregistering classes
+        classes_dependencies = collections.defaultdict(set[type])
         classes_to_reload = []
         for cn, cl in class_names:
             if hasattr(cl, 'is_registered'):
                 if cl.is_registered and module_name == cl.__module__:
                     classes_to_reload.append((cn, cl))
+                    for property in cl.__annotations__.values():
+                        if property.function.__name__ != "CollectionProperty":
+                            continue
+                        dependency = property.keywords["type"]
+                        if dependency.__module__ != module_name:
+                            continue
+                        classes_dependencies[cl].add(dependency)
 
         importlib.reload(module)
-        for cn, cl in classes_to_reload:
-            bpy.utils.unregister_class(cl)
-            cl = getattr(module, cn)
-            bpy.utils.register_class(cl)
-            print('- Registered Class', cn)
-            n_reloaded += 1
+        classes_to_reload = sorted(classes_to_reload, key=lambda x: len(classes_dependencies[x[1]]))
+        while classes_to_reload:
+            resolved_dependencies = set()
+            for cl_data in classes_to_reload[:]:
+                cn, cl = cl_data
+                if classes_dependencies[cl]:
+                    continue
+                # Save dependency before we reload it.
+                resolved_dependencies.add(cl)
+
+                bpy.utils.unregister_class(cl)
+                cl = getattr(module, cn)
+                bpy.utils.register_class(cl)
+                print("- Registered Class", cn)
+                n_reloaded += 1
+                classes_to_reload.remove(cl_data)
+
+            for dependencies in classes_dependencies.values():
+                if not dependencies:
+                    continue
+                dependencies.difference_update(resolved_dependencies)
+
+            # Just to be safe but this shouldn't occur.
+            if not resolved_dependencies:
+                classes_str = ", ".join([cn for cn, cl in classes_to_reload])
+                raise Exception(f"Failed to reload all available classes in the module. Classes left to reload: {classes_str}")
 
         sub_modules=[]
         for n, sm in inspect.getmembers(module, inspect.ismodule):
