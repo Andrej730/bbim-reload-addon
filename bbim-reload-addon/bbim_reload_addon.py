@@ -33,22 +33,27 @@ class BBIM_OT_Reload(bpy.types.Operator):
     bl_idname = 'bbim.bbim_ot_reload'
     bl_label = "Reload Classes from modules"
     
-    def reregister_modules_recursive(self, module_name):
+    def reregister_modules_recursive(self, module_name: str) -> int:
+        n_reloaded = 0
 
         print('Module', module_name)
         module = importlib.import_module(module_name)
         # retrieving registered classes with inspect
-        class_names = [n for n, c in inspect.getmembers(module, inspect.isclass)]
+        class_names = [(n, c) for n, c in inspect.getmembers(module, inspect.isclass)]
         # reregistering classes
-        for cn in class_names:
-            cl = getattr(module, cn)
+        classes_to_reload = []
+        for cn, cl in class_names:
             if hasattr(cl, 'is_registered'):
                 if cl.is_registered and module_name == cl.__module__:
-                    bpy.utils.unregister_class(cl)
-                    importlib.reload(module)
-                    cl = getattr(module, cn)
-                    bpy.utils.register_class(cl)
-                    print('- Registered Class', cn)
+                    classes_to_reload.append((cn, cl))
+
+        importlib.reload(module)
+        for cn, cl in classes_to_reload:
+            bpy.utils.unregister_class(cl)
+            cl = getattr(module, cn)
+            bpy.utils.register_class(cl)
+            print('- Registered Class', cn)
+            n_reloaded += 1
 
         sub_modules=[]
         for n, sm in inspect.getmembers(module, inspect.ismodule):
@@ -57,15 +62,18 @@ class BBIM_OT_Reload(bpy.types.Operator):
                 sub_modules.append(sm.__name__)
 
         for sub_module_name in sub_modules:
-            self.reregister_modules_recursive(sub_module_name)
+            n_reloaded+=self.reregister_modules_recursive(sub_module_name)
+
+        return n_reloaded
 
     def execute(self, context):
         self.props = context.scene.BBIMReloadProperties            
         print("-" * 60)# i'm printing but might be better to do logging.
         print("Reregistering BBIM utility")
-        self.reregister_modules_recursive(self.props.basename+'.'+self.props.module)
+        n = self.reregister_modules_recursive(self.props.basename+'.'+self.props.module)
         print("done")
         print("-" * 60)
+        self.report({"INFO"}, f"{n} classes were reloaded.")
         return {"FINISHED"}
 
 
