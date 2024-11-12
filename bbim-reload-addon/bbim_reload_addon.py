@@ -109,14 +109,14 @@ class BBIM_OT_Reload(bpy.types.Operator):
 class BBIMReloadProperties(PropertyGroup):
     # This property is a string, where we can list modules comma separated...
     # Starting with bbim  module
-    basename: StringProperty(name="Basename", default="blenderbim.bim.module")
+    basename: StringProperty(name="Basename", default="bonsai.bim.module")
     module: StringProperty(name="Module", default="project.operator")
 
 
 class BBIM_PT_Reload(bpy.types.Panel):
     bl_idname = 'BBIM_PT_Reload'
     bl_label = "Reload BBIM classes"
-    bl_description = "BlenderBIM reload "
+    bl_description = "Bonsai reload "
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "scene"
