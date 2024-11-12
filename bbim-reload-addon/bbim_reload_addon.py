@@ -48,7 +48,13 @@ class BBIM_OT_Reload(bpy.types.Operator):
             if hasattr(cl, 'is_registered'):
                 if cl.is_registered and module_name == cl.__module__:
                     classes_to_reload.append((cn, cl))
+
+                    # Figure out class dependencies - when one prop group is using another,
+                    # so the latter should be reregistered first.
                     for property in cl.__annotations__.values():
+                        # Skin usual annotations unrelated to Blender.
+                        if type(property).__name__ != "_PropertyDeferred":
+                            continue
                         if property.function.__name__ != "CollectionProperty":
                             continue
                         dependency = property.keywords["type"]
