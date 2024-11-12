@@ -99,10 +99,16 @@ class BBIM_OT_Reload(bpy.types.Operator):
         self.props = context.scene.BBIMReloadProperties            
         print("-" * 60)# i'm printing but might be better to do logging.
         print("Reregistering BBIM utility")
-        n = self.reregister_modules_recursive(self.props.basename+'.'+self.props.module)
+
+        n_classes = 0
+        n_modules = 0
+        for module_name in self.props.module.split(","):
+            module_name = module_name.strip()
+            n_classes += self.reregister_modules_recursive(f"{self.props.basename}.{module_name}")
+            n_modules += 1
         print("done")
         print("-" * 60)
-        self.report({"INFO"}, f"{n} classes were reloaded.")
+        self.report({"INFO"}, f"{n_modules} modules and {n_classes} classes were reloaded.")
         return {"FINISHED"}
 
 
@@ -110,7 +116,7 @@ class BBIMReloadProperties(PropertyGroup):
     # This property is a string, where we can list modules comma separated...
     # Starting with bbim  module
     basename: StringProperty(name="Basename", default="bonsai.bim.module")
-    module: StringProperty(name="Module", default="project.operator")
+    module: StringProperty(name="Module", description="Comma separated list of modules to reload", default="project.operator")
 
 
 class BBIM_PT_Reload(bpy.types.Panel):
