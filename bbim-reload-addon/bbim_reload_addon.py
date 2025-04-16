@@ -86,7 +86,7 @@ class BBIM_OT_Reload(bpy.types.Operator):
         sub_modules: list[str] = []
         for n, sm in inspect.getmembers(module, inspect.ismodule):
             # We should avoid reparsing upper modules here. so check if sub module contains module name
-            if module_name in sm.__name__:
+            if sm.__name__.startswith(f"{module_name}."):
                 sub_modules.append(sm.__name__)
 
         for sub_module_name in sub_modules:
