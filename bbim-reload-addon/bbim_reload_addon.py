@@ -120,9 +120,8 @@ class BBIM_OT_Reload(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class BBIMReloadProperties(PropertyGroup):
-    # This property is a string, where we can list modules comma separated...
-    # Starting with bbim  module
+class BBIMReloadPreferences(bpy.types.AddonPreferences):
+    bl_idname = __name__
     basename: StringProperty(name="Basename", default="bonsai.bim.module")
     module: StringProperty(
         name="Module", description="Comma separated list of modules to reload", default="project.operator"
@@ -139,34 +138,40 @@ class BBIM_PT_Reload(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        self.props = context.scene.BBIMReloadProperties
+        assert layout
+        prefs = get_preferences(context)
 
-        scene = context.scene
-
-        # Create a simple row.
         row = layout.row()
-        row.prop(self.props, "basename")
+        row.prop(prefs, "basename")
         row = layout.row()
-        row.prop(self.props, "module")
+        row.prop(prefs, "module")
         row = layout.row()
         row.scale_y = 1.0
         row.operator("bbim.bbim_ot_reload")
 
 
-def register():
+def get_preferences(context: bpy.types.Context) -> "BBIMReloadPreferences":
+    assert context.preferences
+    addon_prefs = context.preferences.addons[__name__].preferences
+    assert isinstance(addon_prefs, BBIMReloadPreferences)
+    return addon_prefs
 
-    bpy.utils.register_class(BBIMReloadProperties)
-    # Seems i have to register this class before using Pointer Property  -- ?
-    bpy.types.Scene.BBIMReloadProperties = bpy.props.PointerProperty(type=BBIMReloadProperties)
-    bpy.utils.register_class(BBIM_OT_Reload)
-    bpy.utils.register_class(BBIM_PT_Reload)
+
+classes = (
+    BBIMReloadPreferences,
+    BBIM_OT_Reload,
+    BBIM_PT_Reload,
+)
+
+
+def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
 
 def unregister():
-    bpy.utils.unregister_class(BBIM_PT_Reload)
-    bpy.utils.unregister_class(BBIM_OT_Reload)
-    bpy.utils.unregister_class(BBIMReloadProperties)
-    del bpy.types.Scene.BBIMReloadProperties
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)
 
 
 if __name__ == "__main__":
