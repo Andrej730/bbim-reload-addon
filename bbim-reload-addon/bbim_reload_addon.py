@@ -23,21 +23,21 @@ from bpy.props import (
     StringProperty,
     PointerProperty,
 )
-from bpy.types import (
-    PropertyGroup
-)
+from bpy.types import PropertyGroup
+
 
 class BBIM_OT_Reload(bpy.types.Operator):
-    """ 
-    Reload modules from starting point provided by the string property  module 
-    """ 
-    bl_idname = 'bbim.bbim_ot_reload'
+    """
+    Reload modules from starting point provided by the string property  module
+    """
+
+    bl_idname = "bbim.bbim_ot_reload"
     bl_label = "Reload Classes from modules"
-    
+
     def reregister_modules_recursive(self, module_name: str) -> int:
         n_reloaded = 0
 
-        print('Module', module_name)
+        print("Module", module_name)
         module = importlib.import_module(module_name)
         # retrieving registered classes with inspect
         class_names = [(n, c) for n, c in inspect.getmembers(module, inspect.isclass)]
@@ -45,7 +45,7 @@ class BBIM_OT_Reload(bpy.types.Operator):
         classes_dependencies = collections.defaultdict(set[type])
         classes_to_reload = []
         for cn, cl in class_names:
-            if hasattr(cl, 'is_registered'):
+            if hasattr(cl, "is_registered"):
                 if cl.is_registered and module_name == cl.__module__:
                     classes_to_reload.append((cn, cl))
 
@@ -88,22 +88,24 @@ class BBIM_OT_Reload(bpy.types.Operator):
             # Just to be safe but this shouldn't occur.
             if not resolved_dependencies:
                 classes_str = ", ".join([cn for cn, cl in classes_to_reload])
-                raise Exception(f"Failed to reload all available classes in the module. Classes left to reload: {classes_str}")
+                raise Exception(
+                    f"Failed to reload all available classes in the module. Classes left to reload: {classes_str}"
+                )
 
-        sub_modules=[]
+        sub_modules = []
         for n, sm in inspect.getmembers(module, inspect.ismodule):
             # We should avoid reparsing upper modules here. so check if sub module contains module name
             if module_name in sm.__name__:
                 sub_modules.append(sm.__name__)
 
         for sub_module_name in sub_modules:
-            n_reloaded+=self.reregister_modules_recursive(sub_module_name)
+            n_reloaded += self.reregister_modules_recursive(sub_module_name)
 
         return n_reloaded
 
     def execute(self, context):
-        self.props = context.scene.BBIMReloadProperties            
-        print("-" * 60)# i'm printing but might be better to do logging.
+        self.props = context.scene.BBIMReloadProperties
+        print("-" * 60)  # i'm printing but might be better to do logging.
         print("Reregistering BBIM utility")
 
         n_classes = 0
@@ -122,15 +124,17 @@ class BBIMReloadProperties(PropertyGroup):
     # This property is a string, where we can list modules comma separated...
     # Starting with bbim  module
     basename: StringProperty(name="Basename", default="bonsai.bim.module")
-    module: StringProperty(name="Module", description="Comma separated list of modules to reload", default="project.operator")
+    module: StringProperty(
+        name="Module", description="Comma separated list of modules to reload", default="project.operator"
+    )
 
 
 class BBIM_PT_Reload(bpy.types.Panel):
-    bl_idname = 'BBIM_PT_Reload'
+    bl_idname = "BBIM_PT_Reload"
     bl_label = "Reload BBIM classes"
     bl_description = "Bonsai reload "
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
     bl_context = "scene"
 
     def draw(self, context):
@@ -141,19 +145,18 @@ class BBIM_PT_Reload(bpy.types.Panel):
 
         # Create a simple row.
         row = layout.row()
-        row.prop(self.props, 'basename')
+        row.prop(self.props, "basename")
         row = layout.row()
-        row.prop(self.props, 'module')
+        row.prop(self.props, "module")
         row = layout.row()
         row.scale_y = 1.0
         row.operator("bbim.bbim_ot_reload")
-     
 
 
-def register():    
+def register():
 
-    bpy.utils.register_class(BBIMReloadProperties) 
-    # Seems i have to register this class before using Pointer Property  -- ? 
+    bpy.utils.register_class(BBIMReloadProperties)
+    # Seems i have to register this class before using Pointer Property  -- ?
     bpy.types.Scene.BBIMReloadProperties = bpy.props.PointerProperty(type=BBIMReloadProperties)
     bpy.utils.register_class(BBIM_OT_Reload)
     bpy.utils.register_class(BBIM_PT_Reload)
