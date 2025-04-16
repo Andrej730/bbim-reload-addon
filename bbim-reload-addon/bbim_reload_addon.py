@@ -136,8 +136,18 @@ class Module(bpy.types.PropertyGroup):
 
 
 def update_btn_reload_bbim_reload(self: "BBIMReloadPreferences", context: bpy.types.Context) -> None:
+    preferences = get_preferences(context)
+    saved_modules = [dict(m) for m in preferences.modules]
     bpy.ops.preferences.addon_disable(module=__name__)
     bpy.ops.preferences.addon_enable(module=__name__)
+
+    # Collection prop is reset after addon reload.
+    # EGet new preferences, previous instance is broken after reload.
+    new_preferences = get_preferences(context)
+    for module_dict in saved_modules:
+        module = new_preferences.modules.add()
+        for key, value in module_dict.items():
+            setattr(module, key, value)
 
 
 def update_btn_add_new_module(self: "BBIMReloadPreferences", context: bpy.types.Context) -> None:
