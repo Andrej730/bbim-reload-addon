@@ -1,3 +1,5 @@
+# pyright: reportInvalidTypeForm=false
+
 bl_info = {
     "name": "BBIM reload",
     "author": "bdamay",
@@ -14,25 +16,14 @@ bl_info = {
 import bpy
 import importlib
 import collections
-from datetime import datetime
 import inspect
-import pkgutil
-
-
-from bpy.props import (
-    StringProperty,
-    PointerProperty,
-)
-from bpy.types import PropertyGroup
+from typing import TYPE_CHECKING, Any
 
 
 class BBIM_OT_Reload(bpy.types.Operator):
-    """
-    Reload modules from starting point provided by the string property  module
-    """
-
-    bl_idname = "bbim.bbim_ot_reload"
-    bl_label = "Reload Classes from modules"
+    bl_idname = "bbim_reload.reload"
+    bl_label = "BBIM Reload"
+    bl_description = "Reload provided modules and reregister Blender classes if those modules have them."
 
     def reregister_modules_recursive(self, module_name: str) -> int:
         n_reloaded = 0
@@ -43,7 +34,7 @@ class BBIM_OT_Reload(bpy.types.Operator):
         class_names = [(n, c) for n, c in inspect.getmembers(module, inspect.isclass)]
         # reregistering classes
         classes_dependencies = collections.defaultdict(set[type])
-        classes_to_reload = []
+        classes_to_reload: list[tuple[str, type[Any]]] = []
         for cn, cl in class_names:
             if hasattr(cl, "is_registered"):
                 if cl.is_registered and module_name == cl.__module__:
@@ -92,7 +83,7 @@ class BBIM_OT_Reload(bpy.types.Operator):
                     f"Failed to reload all available classes in the module. Classes left to reload: {classes_str}"
                 )
 
-        sub_modules = []
+        sub_modules: list[str] = []
         for n, sm in inspect.getmembers(module, inspect.ismodule):
             # We should avoid reparsing upper modules here. so check if sub module contains module name
             if module_name in sm.__name__:
@@ -104,28 +95,78 @@ class BBIM_OT_Reload(bpy.types.Operator):
         return n_reloaded
 
     def execute(self, context):
-        self.props = context.scene.BBIMReloadProperties
+        prefs = get_preferences(context)
         print("-" * 60)  # i'm printing but might be better to do logging.
         print("Reregistering BBIM utility")
 
         n_classes = 0
         n_modules = 0
-        for module_name in self.props.module.split(","):
-            module_name = module_name.strip()
-            n_classes += self.reregister_modules_recursive(f"{self.props.basename}.{module_name}")
+        for module in prefs.modules:
+            if not module.is_active:
+                continue
+            module_name = module.name.strip()
+            n_classes += self.reregister_modules_recursive(module_name)
             n_modules += 1
+
         print("done")
         print("-" * 60)
         self.report({"INFO"}, f"{n_modules} modules and {n_classes} classes were reloaded.")
         return {"FINISHED"}
 
 
+def update_btn_remove_module(self: "Module", context: bpy.types.Context) -> None:
+    prefs = get_preferences(context)
+    i = next(i for i, module in enumerate(prefs.modules) if module == self)
+    prefs.modules.remove(i)
+
+
+class Module(bpy.types.PropertyGroup):
+    name: bpy.props.StringProperty(name="Python Module to Reload", default="bonsai.bim.module")
+    btn_remove_module: bpy.props.BoolProperty(name="Remove Selected Module", update=update_btn_remove_module)
+    is_active: bpy.props.BoolProperty(
+        name="Is Module Active",
+        description="If module is not active, it will be skipped from the reload",
+        default=True,
+    )
+
+    if TYPE_CHECKING:
+        name: str
+        btn_remove_module: bool
+        is_active: bool
+
+
+def update_btn_reload_bbim_reload(self: "BBIMReloadPreferences", context: bpy.types.Context) -> None:
+    bpy.ops.preferences.addon_disable(module=__name__)
+    bpy.ops.preferences.addon_enable(module=__name__)
+
+
+def update_btn_add_new_module(self: "BBIMReloadPreferences", context: bpy.types.Context) -> None:
+    set_name = self.modules[-1].name.strip() if self.modules else ""
+    module = self.modules.add()
+    # Duplicate name from last module if it's available.
+    if set_name:
+        module.name = set_name
+    del self["btn_add_new_module"]
+
+
 class BBIMReloadPreferences(bpy.types.AddonPreferences):
     bl_idname = __name__
-    basename: StringProperty(name="Basename", default="bonsai.bim.module")
-    module: StringProperty(
-        name="Module", description="Comma separated list of modules to reload", default="project.operator"
+
+    # Using update callbacks as operators are more cumbersome.
+    modules: bpy.props.CollectionProperty(type=Module)
+    btn_reload_bbim_reload: bpy.props.BoolProperty(
+        name="Reload BBIM Reload Addon Itself", update=update_btn_reload_bbim_reload
     )
+    btn_add_new_module: bpy.props.BoolProperty(name="Add new module entry.", update=update_btn_add_new_module)
+    # basename: bpy.props.StringProperty(name="Basename", default="bonsai.bim.module")
+    # module: bpy.props.StringProperty(
+    #     name="Module", description="Comma separated list of modules to reload", default="project.operator"
+    # )
+
+    if TYPE_CHECKING:
+        modules: bpy.types.bpy_prop_collection_idprop[Module]
+        btn_add_new_module: bool
+        btn_reload_bbim_reload: bool
 
 
 class BBIM_PT_Reload(bpy.types.Panel):
@@ -142,12 +183,23 @@ class BBIM_PT_Reload(bpy.types.Panel):
         prefs = get_preferences(context)
 
         row = layout.row()
-        row.prop(prefs, "basename")
-        row = layout.row()
-        row.prop(prefs, "module")
-        row = layout.row()
-        row.scale_y = 1.0
-        row.operator("bbim.bbim_ot_reload")
+        left_row = row.row()
+        left_row.alignment = "LEFT"
+        left_row.operator(BBIM_OT_Reload.bl_idname, text="Reload", icon="FILE_REFRESH")
+
+        right_row = row.row(align=True)
+        right_row.alignment = "RIGHT"
+        right_row.prop(prefs, "btn_add_new_module", text="", icon="ADD")
+        right_row.prop(prefs, "btn_reload_bbim_reload", text="", icon="TOOL_SETTINGS")
+
+        if prefs.modules:
+            layout.label(text="Modules to Reload:")
+        for module in prefs.modules:
+            row = layout.row(align=True)
+            row.prop(module, "name", text="")
+            icon = "RADIOBUT_ON" if module.is_active else "RADIOBUT_OFF"
+            row.prop(module, "is_active", text="", icon=icon, invert_checkbox=True)
+            row.prop(module, "btn_remove_module", text="", icon="X")
 
 
 def get_preferences(context: bpy.types.Context) -> "BBIMReloadPreferences":
@@ -158,6 +210,7 @@ def get_preferences(context: bpy.types.Context) -> "BBIMReloadPreferences":
 
 
 classes = (
+    Module,
     BBIMReloadPreferences,
     BBIM_OT_Reload,
     BBIM_PT_Reload,
