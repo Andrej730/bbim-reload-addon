@@ -121,7 +121,11 @@ def update_btn_remove_module(self: "Module", context: bpy.types.Context) -> None
 
 
 class Module(bpy.types.PropertyGroup):
-    name: bpy.props.StringProperty(name="Python Module to Reload", default="bonsai.bim.module")
+    name: bpy.props.StringProperty(
+        name="Python Module to Reload",
+        description="Note that all it's submodules will be reloaded too, recursively.",
+        default="bonsai.bim.module",
+    )
     btn_remove_module: bpy.props.BoolProperty(name="Remove Selected Module", update=update_btn_remove_module)
     is_active: bpy.props.BoolProperty(
         name="Is Module Active",
