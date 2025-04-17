@@ -25,8 +25,13 @@ class BBIM_OT_Reload(bpy.types.Operator):
     bl_label = "BBIM Reload"
     bl_description = "Reload provided modules and reregister Blender classes if those modules have them."
 
-    def reregister_modules_recursive(self, module_name: str) -> int:
-        n_reloaded = 0
+    def reregister_modules_recursive(self, module_name: str) -> tuple[int, int]:
+        """
+        :return: A tuple of number of reloaded modules and classes.
+        """
+        # Start with 1 counting the current module.
+        n_modules_reloaded = 1
+        n_classes_reloaded = 0
 
         print("Module", module_name)
         module = importlib.import_module(module_name)
@@ -68,7 +73,7 @@ class BBIM_OT_Reload(bpy.types.Operator):
                 cl = getattr(module, cn)
                 bpy.utils.register_class(cl)
                 print("- Registered Class", cn)
-                n_reloaded += 1
+                n_classes_reloaded += 1
                 classes_to_reload.remove(cl_data)
 
             for dependencies in classes_dependencies.values():
@@ -90,9 +95,11 @@ class BBIM_OT_Reload(bpy.types.Operator):
                 sub_modules.append(sm.__name__)
 
         for sub_module_name in sub_modules:
-            n_reloaded += self.reregister_modules_recursive(sub_module_name)
+            n_modules_reloaded_, n_classes_reloaded_ = self.reregister_modules_recursive(sub_module_name)
+            n_modules_reloaded += n_modules_reloaded_
+            n_classes_reloaded = n_classes_reloaded_
 
-        return n_reloaded
+        return n_modules_reloaded, n_classes_reloaded
 
     def execute(self, context):
         prefs = get_preferences(context)
@@ -105,8 +112,9 @@ class BBIM_OT_Reload(bpy.types.Operator):
             if not module.is_active:
                 continue
             module_name = module.name.strip()
-            n_classes += self.reregister_modules_recursive(module_name)
-            n_modules += 1
+            n_modules_, n_classes_ = self.reregister_modules_recursive(module_name)
+            n_modules += n_modules_
+            n_classes += n_classes_
 
         print("done")
         print("-" * 60)
